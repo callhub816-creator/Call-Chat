@@ -1,0 +1,8 @@
+{
+  "name": "CallHub",
+  "description": "Premium AI Girlfriend Platform featuring flirty chat, voice calls, and emotional connection.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
