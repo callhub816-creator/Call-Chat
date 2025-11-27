@@ -156,7 +156,7 @@ const PersonaCard: React.FC<PersonaCardProps> = ({
     >
       
       {/* IMAGE SECTION */}
-      <div className="relative w-full h-56 bg-gray-100 overflow-hidden">
+      <div className="relative w-full aspect-square bg-gray-100 overflow-hidden flex items-center justify-center">
         
         {/* Loading State */}
         {status === 'loading' && (
@@ -202,7 +202,7 @@ const PersonaCard: React.FC<PersonaCardProps> = ({
           <img
             src={persona.avatarUrl || imageUrl || '/personas/placeholder.png'}
             alt={`Portrait of ${persona.name}`}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
             loading="lazy"
             onError={(e) => {
               const img = e.currentTarget as HTMLImageElement;
