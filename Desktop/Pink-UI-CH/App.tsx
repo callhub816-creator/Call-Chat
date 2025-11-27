@@ -230,23 +230,8 @@ const App: React.FC = () => {
 
           <div className="flex flex-col gap-1">
             <p className="text-[#5e3a58]/40 text-[10px] font-light leading-relaxed">
-              © 2025 CallHub • All Rights Reserved • 18+ Only<br/>
-              Designed for safe, private emotional AI interactions
+              © 2025 CallHub • All Rights Reserved • 18+ Only
             </p>
-            <div className="flex items-center gap-3 mt-2">
-              <button 
-                onClick={() => setCurrentPage('admin')}
-                className="text-[9px] text-[#5e3a58]/20 hover:text-[#B28DFF] transition-colors flex items-center justify-center gap-1"
-              >
-                <Lock size={8} /> Admin Access
-              </button>
-              <button
-                onClick={handleLogout}
-                className="text-[9px] text-[#5e3a58]/20 hover:text-red-500 transition-colors flex items-center justify-center gap-1"
-              >
-                <Trash2 size={10} /> Logout (clear histories)
-              </button>
-            </div>
           </div>
         </footer>
 
