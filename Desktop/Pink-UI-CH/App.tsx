@@ -11,7 +11,8 @@ import TermsPage from './components/TermsPage';
 import FAQPage from './components/FAQPage';
 import SafetyPage from './components/SafetyPage';
 import AdminPage from './components/AdminPage';
-import { Sparkles, Heart, Phone, Lock, Trash2 } from 'lucide-react';
+import GuestChat from './GuestChat';
+import { Sparkles, Heart, Phone, Lock, Trash2, MessageCircle } from 'lucide-react';
 import { Persona } from './types';
 import { PERSONAS } from './constants';
 import { storage } from './utils/storage';
@@ -22,7 +23,7 @@ interface ChatSession {
 }
 
 const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<'home' | 'about' | 'privacy' | 'terms' | 'faq' | 'safety' | 'admin'>('home');
+  const [currentPage, setCurrentPage] = useState<'home' | 'about' | 'privacy' | 'terms' | 'faq' | 'safety' | 'admin' | 'guest-chat'>('home');
   const galleryRef = useRef<HTMLDivElement>(null);
   const vibeRef = useRef<HTMLDivElement>(null);
 
@@ -113,6 +114,9 @@ const App: React.FC = () => {
       />
     );
   }
+  if (currentPage === 'guest-chat') {
+    return <GuestChat onBack={() => setCurrentPage('home')} />;
+  }
   if (currentPage === 'about') return <AboutPage onBack={() => setCurrentPage('home')} />;
   if (currentPage === 'privacy') return <PrivacyPage onBack={() => setCurrentPage('home')} />;
   if (currentPage === 'terms') return <TermsPage onBack={() => setCurrentPage('home')} />;
@@ -192,6 +196,10 @@ const App: React.FC = () => {
                  <button onClick={scrollToGallery} className="flex-1 h-11 md:h-14 px-6 rounded-full bg-white/40 border border-white/60 text-[#5e3a58] font-semibold text-[15px] md:text-lg hover:bg-white/70 transition-all active:scale-95 backdrop-blur-sm flex items-center justify-center whitespace-nowrap">
                    Browse Characters
                  </button>
+                 <button onClick={() => setCurrentPage('guest-chat')} className="flex-1 h-11 md:h-14 px-6 rounded-full bg-white/40 border border-white/60 text-[#5e3a58] font-semibold text-[15px] md:text-lg hover:bg-white/70 transition-all active:scale-95 backdrop-blur-sm flex items-center justify-center whitespace-nowrap gap-2">
+                   <MessageCircle size={18} />
+                   Guest Chat
+                 </button>
               </div>
            </div>
         </div>
@@ -220,6 +228,7 @@ const App: React.FC = () => {
         <footer className="w-full py-12 px-6 bg-[#FFF0F5] mt-12 border-t border-[#B28DFF]/10 flex flex-col items-center justify-center text-center space-y-4">
           <div className="flex flex-wrap justify-center gap-6">
             <button onClick={() => setCurrentPage('about')} className="text-xs text-[#5e3a58]/70 hover:text-[#B28DFF] font-medium transition-colors">About Us</button>
+            <button onClick={() => setCurrentPage('guest-chat')} className="text-xs text-[#5e3a58]/70 hover:text-[#B28DFF] font-medium transition-colors">Guest Chat</button>
             <button onClick={() => setCurrentPage('faq')} className="text-xs text-[#5e3a58]/70 hover:text-[#B28DFF] font-medium transition-colors">FAQ</button>
             <button onClick={() => setCurrentPage('privacy')} className="text-xs text-[#5e3a58]/70 hover:text-[#B28DFF] font-medium transition-colors">Privacy Policy</button>
             <button onClick={() => setCurrentPage('terms')} className="text-xs text-[#5e3a58]/70 hover:text-[#B28DFF] font-medium transition-colors">Terms of Service</button>
