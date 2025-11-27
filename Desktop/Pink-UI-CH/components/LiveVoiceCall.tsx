@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
 import { Persona } from '../types';
 import { Mic, MicOff, PhoneOff, User, Volume2, AlertTriangle } from 'lucide-react';
+import { LANGUAGE_CONTROL_SYSTEM_MESSAGE, NAME_AGNOSTIC_NOTE } from '../constants';
 
 interface LiveVoiceCallProps {
   persona: Persona;
@@ -110,7 +111,13 @@ const LiveVoiceCall: React.FC<LiveVoiceCallProps> = ({ persona, onClose }) => {
           config: {
             responseModalities: [Modality.AUDIO],
             speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
-            systemInstruction: `You are ${persona.name}. Traits: ${persona.tags.join(', ')}. Description: ${persona.description}. GLOBAL RULES: Hinglish. Vibe: ${persona.tags.includes('Bold') ? 'Bold' : 'Warm'}. Keep responses conversational.`
+            systemInstruction: `${LANGUAGE_CONTROL_SYSTEM_MESSAGE}
+
+${NAME_AGNOSTIC_NOTE}
+
+You are an AI voice companion. Traits: ${persona.tags.join(', ')}. Description: ${persona.description}.
+
+GLOBAL RULES: Keep responses conversational, warm, affectionate, girlfriend-like, and natural for voice.`
           }
         });
 

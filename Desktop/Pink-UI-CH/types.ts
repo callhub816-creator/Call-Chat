@@ -1,3 +1,4 @@
+export type DetectedLanguage = 'hindi' | 'english' | 'hinglish';
 
 export interface ModeCardData {
   id: number;
@@ -21,5 +22,5 @@ export interface Persona {
   mode?: string;
   createdAt?: number;
   language?: 'hinglish' | 'english';
-  defaultLanguage?: string; // e.g., 'hinglish', 'hi', 'en'
+  defaultLanguage?: 'hinglish'; // Only Hinglish is the default language
 }

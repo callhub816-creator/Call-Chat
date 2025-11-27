@@ -4,7 +4,7 @@ export type StoredPersona = {
   description?: string;
   gender?: string;
   mode: string;
-  defaultLanguage?: string; // e.g., 'hinglish', 'hi', 'en'
+  defaultLanguage?: 'hinglish'; // Only Hinglish is default
   avatarUrl?: string;
   tags?: string[];
   createdAt: number;

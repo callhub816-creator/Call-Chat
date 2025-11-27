@@ -5,6 +5,7 @@ import { GoogleGenAI, Chat } from "@google/genai";
 import { ArrowLeft, Phone, Mic, Send, Heart, User, AlertCircle, Check, CheckCheck, Palette, X, Sparkles, Reply, Trash2, RefreshCw, Lock } from 'lucide-react';
 import { storage } from '../utils/storage';
 import { detectLanguage } from '../utils/language';
+import { LANGUAGE_CONTROL_SYSTEM_MESSAGE, NAME_AGNOSTIC_NOTE } from '../constants';
 
 interface ChatScreenProps {
   persona: Persona;
@@ -109,9 +110,9 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ persona, avatarUrl, onBack, onS
           // Use exact systemMessage template supplied by user, mapping persona.lockedMode safely
           const lockedMode = (persona as any).mode ?? MODE;
 
-          const systemMessage = `SYSTEM: You are "${persona.name}" — an AI character.
+          const systemMessage = `${LANGUAGE_CONTROL_SYSTEM_MESSAGE}
 
-IMPORTANT RULES:
+${NAME_AGNOSTIC_NOTE}
 
 RESPOND ONLY IN THE SINGLE MODE: "${lockedMode}" and never switch modes. Treat the selected mode as locked and immutable.
 
