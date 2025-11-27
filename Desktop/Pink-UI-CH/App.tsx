@@ -11,7 +11,7 @@ import TermsPage from './components/TermsPage';
 import FAQPage from './components/FAQPage';
 import SafetyPage from './components/SafetyPage';
 import AdminPage from './components/AdminPage';
-import { Sparkles, Heart, Phone, Lock, Clock, Trash2 } from 'lucide-react';
+import { Sparkles, Heart, Phone, Lock, Trash2 } from 'lucide-react';
 import { Persona } from './types';
 import { PERSONAS } from './constants';
 import { storage } from './utils/storage';
@@ -30,16 +30,12 @@ const App: React.FC = () => {
   const scrollToVibe = () => vibeRef.current?.scrollIntoView({ behavior: 'smooth' });
 
   const [systemPersonas, setSystemPersonas] = useState<Persona[]>(PERSONAS);
-  const [userPersonas, setUserPersonas] = useState<any[]>([]);
 
   const [activeCallPersona, setActiveCallPersona] = useState<Persona | null>(null);
   const [activeChatSession, setActiveChatSession] = useState<ChatSession | null>(null);
   const [viewingProfile, setViewingProfile] = useState<{ persona: Persona, avatarUrl?: string } | null>(null);
 
-  useEffect(() => {
-    const loaded = storage.getPartners();
-    setUserPersonas(loaded);
-  }, []);
+
 
   const handleUpdatePersonaImage = (id: string | number, imageUrl: string | undefined) => {
     setSystemPersonas(prev => prev.map(p => 
@@ -90,7 +86,6 @@ const App: React.FC = () => {
 
   const endChat = () => {
     setActiveChatSession(null);
-    setUserPersonas(storage.getPartners());
   };
 
   const handleViewProfile = (persona: Persona, avatarUrl?: string) => {
@@ -99,24 +94,9 @@ const App: React.FC = () => {
 
   const handlePersonaCreated = (newPersona: Persona, avatarUrl?: string) => {
     const saved = storage.savePartner({ ...newPersona, avatarUrl });
-    setUserPersonas(prev => [saved, ...prev]);
     startChat(saved, avatarUrl);
   };
 
-  const handleDeletePartner = (id: string | number) => {
-    if (confirm("Delete this partner and all chat history? This cannot be undone.")) {
-      storage.deletePartner(id);
-      setUserPersonas(prev => prev.filter(p => p.id !== id));
-    }
-  };
-
-  const handleExtendRetention = (id: string | number) => {
-    const updated = storage.extendRetention(id);
-    if (updated) {
-      setUserPersonas(prev => prev.map(p => p.id === id ? updated : p));
-      alert("Retention extended by 7 days.");
-    }
-  };
 
   const handleLogout = () => {
     if (!confirm('Log out? This will clear local chat histories on this device.')) return;
