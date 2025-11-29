@@ -31,6 +31,7 @@ export default function GuestChat({ onBack }: GuestChatProps) {
   const [error, setError] = useState<string | null>(null);
   const [connectedAt, setConnectedAt] = useState<Date | null>(null);
   const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [connectionTimeout, setConnectionTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -53,12 +54,15 @@ export default function GuestChat({ onBack }: GuestChatProps) {
       return;
     }
 
+    let guestIdReceived = false;
+
     const newSocket = io(SOCKET_URL, {
       reconnection: true,
       reconnectionDelay: 2000,
       reconnectionDelayMax: 10000,
       reconnectionAttempts: 3,
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      timeout: 5000
     });
 
     // Connection established
@@ -70,8 +74,11 @@ export default function GuestChat({ onBack }: GuestChatProps) {
 
     // Receive guest ID
     newSocket.on('guest_id', (data: any) => {
+      guestIdReceived = true;
       setGuestId(data.guestId);
       console.log('🆔 Guest ID:', data.guestId);
+      // Clear timeout since we got the ID
+      if (connectionTimeout) clearTimeout(connectionTimeout);
     });
 
     // Load initial messages
@@ -98,7 +105,9 @@ export default function GuestChat({ onBack }: GuestChatProps) {
     // Handle connection error
     newSocket.on('connect_error', (error: any) => {
       console.error('Socket connect_error:', error.message);
-      setError(`❌ Cannot connect to server. Is it running at ${SOCKET_URL}?`);
+      if (!guestIdReceived) {
+        setError(`❌ Cannot connect to server. Is it running at ${SOCKET_URL}?`);
+      }
     });
 
     // Messages cleared (admin action)
@@ -114,14 +123,28 @@ export default function GuestChat({ onBack }: GuestChatProps) {
     // Handle disconnect
     newSocket.on('disconnect', () => {
       console.log('❌ Disconnected from server');
-      setGuestId(null);
-      setMessages([]);
-      setError('📡 Disconnected from server');
+      if (guestIdReceived) {
+        setGuestId(null);
+        setMessages([]);
+        setError('📡 Disconnected from server');
+      }
     });
 
     setSocket(newSocket);
 
+    // Set a timeout for guest ID to arrive - if not received within 8 seconds, show error
+    const timeout = setTimeout(() => {
+      if (!guestIdReceived && newSocket.connected) {
+        console.warn('Guest ID not received after 8 seconds');
+        setError('⚠️ Server is not responding. Guest chat unavailable.');
+        newSocket.disconnect();
+      }
+    }, 8000);
+
+    setConnectionTimeout(timeout);
+
     return () => {
+      if (timeout) clearTimeout(timeout);
       newSocket.disconnect();
     };
   }, []);
@@ -181,12 +204,31 @@ export default function GuestChat({ onBack }: GuestChatProps) {
   if (!guestId) {
     return (
       <div className="h-screen bg-gradient-to-br from-rose-50 to-pink-100 flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-rose-400 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
-            <span className="text-2xl">💬</span>
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Connecting...</h2>
-          <p className="text-gray-600">Setting up your anonymous chat session</p>
+        <div className="text-center max-w-md">
+          {error ? (
+            <>
+              <div className="w-16 h-16 bg-gradient-to-br from-red-400 to-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <AlertCircle className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Connection Failed</h2>
+              <p className="text-gray-600 mb-6">{error}</p>
+              <button
+                onClick={onBack || (() => window.history.back())}
+                className="px-6 py-2 bg-gradient-to-r from-rose-500 to-pink-600 text-white font-semibold rounded-lg hover:shadow-lg transition"
+              >
+                Go Back
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="w-16 h-16 bg-gradient-to-br from-rose-400 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+                <span className="text-2xl">💬</span>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Connecting...</h2>
+              <p className="text-gray-600">Setting up your anonymous chat session</p>
+              <p className="text-sm text-gray-500 mt-4">This may take a few seconds...</p>
+            </>
+          )}
         </div>
       </div>
     );
