@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { Send, Loader, AlertCircle } from 'lucide-react';
+import { Send, Loader, AlertCircle, Wifi } from 'lucide-react';
 import ProfileCard from './components/ProfileCard';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
+const IS_SERVER_CONFIGURED = !!import.meta.env.VITE_SOCKET_URL;
 
 interface Message {
   id: string;
@@ -47,14 +48,19 @@ export default function GuestChat({ onBack }: GuestChatProps) {
 
   // Initialize Socket.IO connection
   useEffect(() => {
-    // Only try to connect if a server URL is configured
-    if (!SOCKET_URL || SOCKET_URL === 'http://localhost:3001') {
-      setError('📡 Socket server not configured. Guest chat disabled. Set VITE_SOCKET_URL environment variable.');
-      console.warn('Socket.IO server not configured. Set VITE_SOCKET_URL in your environment.');
+    let guestIdReceived = false;
+    let connectionAttempted = false;
+
+    // If server is not configured, use local mode (demo mode)
+    if (!IS_SERVER_CONFIGURED) {
+      // Generate a demo guest ID and start in local mode
+      const demoGuestId = `guest_${Math.random().toString(36).substr(2, 9)}`;
+      setGuestId(demoGuestId);
+      console.log('🔧 Running in demo mode (no server configured). Messages are local only.');
       return;
     }
 
-    let guestIdReceived = false;
+    let guestIdTimeout: NodeJS.Timeout;
 
     const newSocket = io(SOCKET_URL, {
       reconnection: true,
@@ -68,6 +74,7 @@ export default function GuestChat({ onBack }: GuestChatProps) {
     // Connection established
     newSocket.on('connect', () => {
       console.log('✅ Connected to server');
+      connectionAttempted = true;
       setError(null);
       setConnectedAt(new Date());
     });
@@ -78,7 +85,7 @@ export default function GuestChat({ onBack }: GuestChatProps) {
       setGuestId(data.guestId);
       console.log('🆔 Guest ID:', data.guestId);
       // Clear timeout since we got the ID
-      if (connectionTimeout) clearTimeout(connectionTimeout);
+      if (guestIdTimeout) clearTimeout(guestIdTimeout);
     });
 
     // Load initial messages
@@ -106,7 +113,15 @@ export default function GuestChat({ onBack }: GuestChatProps) {
     newSocket.on('connect_error', (error: any) => {
       console.error('Socket connect_error:', error.message);
       if (!guestIdReceived) {
-        setError(`❌ Cannot connect to server. Is it running at ${SOCKET_URL}?`);
+        setError(`⚠️ Cannot connect to server at ${SOCKET_URL}. Running in demo mode.`);
+        // Auto-create guest ID after failed connection attempt
+        setTimeout(() => {
+          if (!guestIdReceived) {
+            const demoGuestId = `guest_${Math.random().toString(36).substr(2, 9)}`;
+            setGuestId(demoGuestId);
+            console.log('🔧 Switched to demo mode');
+          }
+        }, 3000);
       }
     });
 
@@ -126,25 +141,25 @@ export default function GuestChat({ onBack }: GuestChatProps) {
       if (guestIdReceived) {
         setGuestId(null);
         setMessages([]);
-        setError('📡 Disconnected from server');
+        setError('📡 Disconnected from server. Refresh to reconnect.');
       }
     });
 
     setSocket(newSocket);
 
-    // Set a timeout for guest ID to arrive - if not received within 8 seconds, show error
-    const timeout = setTimeout(() => {
+    // Set a timeout for guest ID to arrive - if not received within 8 seconds, switch to demo mode
+    guestIdTimeout = setTimeout(() => {
       if (!guestIdReceived && newSocket.connected) {
-        console.warn('Guest ID not received after 8 seconds');
-        setError('⚠️ Server is not responding. Guest chat unavailable.');
+        console.warn('Guest ID not received after 8 seconds, switching to demo mode');
+        const demoGuestId = `guest_${Math.random().toString(36).substr(2, 9)}`;
+        setGuestId(demoGuestId);
+        setError(null);
         newSocket.disconnect();
       }
     }, 8000);
 
-    setConnectionTimeout(timeout);
-
     return () => {
-      if (timeout) clearTimeout(timeout);
+      if (guestIdTimeout) clearTimeout(guestIdTimeout);
       newSocket.disconnect();
     };
   }, []);
@@ -153,16 +168,34 @@ export default function GuestChat({ onBack }: GuestChatProps) {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!inputMessage.trim() || !socket) return;
+    if (!inputMessage.trim()) return;
 
     setIsLoading(true);
     setError(null);
 
     try {
-      socket.emit('send_message', {
-        message: inputMessage.trim(),
-        userName: userName || `Guest ${guestId?.slice(0, 5)}`
-      });
+      const messageText = inputMessage.trim();
+      const senderName = userName || `Guest ${guestId?.slice(0, 5)}`;
+
+      // If socket is connected, send via server
+      if (socket && socket.connected) {
+        socket.emit('send_message', {
+          message: messageText,
+          userName: senderName
+        });
+      } else {
+        // Demo mode: create local message
+        const localMessage: Message = {
+          id: `msg_${Date.now()}`,
+          guestId: guestId || 'guest_demo',
+          userName: senderName,
+          message: messageText,
+          tags: [],
+          timestamp: new Date().toISOString(),
+          source: 'rest'
+        };
+        setMessages(prev => [...prev, localMessage]);
+      }
 
       setInputMessage('');
       inputRef.current?.focus();
@@ -207,17 +240,26 @@ export default function GuestChat({ onBack }: GuestChatProps) {
         <div className="text-center max-w-md">
           {error ? (
             <>
-              <div className="w-16 h-16 bg-gradient-to-br from-red-400 to-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                <AlertCircle className="w-8 h-8 text-white" />
+              <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Wifi className="w-8 h-8 text-white" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Connection Failed</h2>
-              <p className="text-gray-600 mb-6">{error}</p>
-              <button
-                onClick={onBack || (() => window.history.back())}
-                className="px-6 py-2 bg-gradient-to-r from-rose-500 to-pink-600 text-white font-semibold rounded-lg hover:shadow-lg transition"
-              >
-                Go Back
-              </button>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Server Connection Issue</h2>
+              <p className="text-gray-600 mb-6 text-sm">{error}</p>
+              <p className="text-gray-500 text-xs mb-6">You can still use chat in demo mode (messages won't be saved)</p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={() => { setError(null); setGuestId(`guest_${Math.random().toString(36).substr(2, 9)}`); }}
+                  className="px-6 py-2 bg-gradient-to-r from-rose-500 to-pink-600 text-white font-semibold rounded-lg hover:shadow-lg transition"
+                >
+                  Continue in Demo Mode
+                </button>
+                <button
+                  onClick={onBack || (() => window.history.back())}
+                  className="px-6 py-2 border border-gray-400 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition"
+                >
+                  Go Back
+                </button>
+              </div>
             </>
           ) : (
             <>
