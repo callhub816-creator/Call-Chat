@@ -45,7 +45,25 @@
 - **Node.js** v18+ (tested on v22.20.0)
 - **npm** or **yarn**
 
-### 1. Clone & Install
+### 1. Configure Environment Variables
+
+Copy `.env.example` to `.env.local` and fill in your values:
+
+```bash
+# .env.local
+VITE_GEMINI_API_KEY=sk-...your_api_key...
+
+# Guest Chat Server (optional - only if you have a Socket.IO server running)
+# Leave commented out if you don't have a server - Guest Chat will show a graceful error
+# VITE_SOCKET_URL=http://localhost:3001
+```
+
+**Note:** 
+- ✅ `VITE_GEMINI_API_KEY` is **required** for AI Persona Chat to work
+- ❌ `VITE_SOCKET_URL` is **optional** - Guest Chat will gracefully disable if not configured
+- If you have a Socket.IO server running, uncomment and set the URL to enable Guest Chat features
+
+### 2. Clone & Install
 ```bash
 # Install dependencies
 npm install
@@ -63,6 +81,30 @@ VITE_GEMINI_API_KEY=your_gemini_api_key_here
 # Guest Chat Server (optional, defaults to localhost:3001)
 VITE_SOCKET_URL=http://localhost:3001
 ```
+
+### Optional: Supabase Authentication (Facebook)
+If you want to enable email + Facebook OAuth authentication using Supabase, add these to your `.env.local`:
+
+```env
+# Supabase (frontend only - anon key)
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_public_anon_key_here
+```
+
+
+Steps to configure OAuth providers in Supabase:
+
+1. In your Supabase project, go to **Authentication → Providers**.
+2. Enable **Facebook** and provide the credentials from the Facebook developer console.
+3. Set the redirect URL(s) in the provider configuration to:
+
+```
+https://<your-project>.supabase.co/auth/v1/callback
+```
+
+Or if you use a custom domain / local dev with a proxy, ensure the redirect URI matches exactly (include protocol and trailing path). After configuring, restart your frontend and use the login/signup pages at `/login` and `/signup`.
+
+Security note: only use the anon/public key in the frontend. Never store or commit a Supabase `service_role` key in the client.
 
 ### 3. Start Both Services
 
@@ -630,6 +672,220 @@ git push origin feature/your-feature
 **Troubleshooting:**
 - [Troubleshooting Guide](./GUEST_CHAT_SETUP.md#-troubleshooting)
 - [Security Notes](./GUEST_CHAT_SETUP.md#-security-notes)
+
+---
+
+## 💬 Advanced Chat Features (v2.0+)
+
+### 1️⃣ **Message UI with Virtualization**
+- **react-window** for high-performance message lists (handles 10K+ messages)
+- Auto-scroll to bottom on new messages
+- "New messages" floating button if user scrolls up
+- Bubble layout (left for others, right for own)
+- Avatar, timestamp, sender name on each message
+- Accessibility: ARIA labels, keyboard navigation
+
+**Usage:**
+```tsx
+<MessageList
+  messages={messages}
+  currentUserId={userId}
+  onReply={handleReply}
+  chatHeight={500}
+/>
+```
+
+### 2️⃣ **Quoted Reply (WhatsApp-style)**
+- Click reply button on any message
+- Composer shows preview block with author + 80-char snippet
+- On send: attaches `reply_to` field to message
+- Click quoted snippet to scroll to original message
+- Permissions: anyone can reply
+
+**Example:**
+```
+User A: "Hey, did you finish the report?"
+> User B replies to User A
+
+User B: "Just finished!" 
+  └─ Replying to: "Hey, did you finish..."
+```
+
+### 3️⃣ **Multi-Select Delete + Undo (10s window)**
+- Long-press or click "Select" to enter selection mode
+- Each message shows checkbox
+- Bulk delete toolbar shows count
+- Delete behavior:
+  - ✅ **Soft-delete**: sets `deleted_at` timestamp
+  - ✅ **Immediate UI**: shows "Message deleted — Undo (10s)"
+  - ✅ **Undo within 10s**: restores message (clears `deleted_at`)
+  - ✅ **After 10s**: finalizes (no further undo)
+- Permissions: users can delete only their own messages
+
+**Features:**
+- Confirmation modal listing count
+- Per-message undo button visible for 10 seconds
+- Clean database trail (keeps `deleted_at` + `deleted_by` for audit)
+
+### 4️⃣ **Typing Indicators & Read Receipts (Realtime)**
+- **Broadcast typing events** via Supabase Realtime (debounced 300ms)
+- **UI indicators:**
+  - Show "typing…" under chat header (up to 2 names)
+  - One tick = delivered, two blue ticks = read
+- **Delivery event**: sent when message arrives on recipient's client
+- **Read event**: sent when recipient opens chat view
+- Fully realtime with Supabase subscriptions
+
+**Example:**
+```
+User A (typing…)
+├─ Message: "Hello!" ✓✓ (read)
+└─ Message: "How are you?" ✓ (delivered)
+```
+
+### 5️⃣ **Message Edit (5-minute window)**
+- "Edit" button appears on own messages **only within 5 minutes**
+- Click "Edit" → composer pre-fills with message body
+- On save: updates `body` + sets `edited_at` timestamp
+- UI shows "(edited)" label next to timestamp
+- After 5 minutes: Edit button hidden
+
+**Acceptance:**
+- Edit allowed only within 5 minutes of `created_at`
+- Cannot edit others' messages or deleted messages
+- Shows "edited" label forever
+
+### 6️⃣ **Hinglish Detection + Language Toggle**
+- **Auto-detection:**
+  - Devanagari characters → Hinglish 🇮🇳
+  - Hindi stopwords (haan, kya, nahi, batao, etc.) → Hinglish
+  - English patterns → English 🇬🇧
+  - **Algorithm:** checks Devanagari range + common Hinglish words
+- **Composer toggle:** Auto / हिंग्लिश / English
+- **Persistence:** stored in user `profiles` table
+- **Final lang_hint:** userToggle OR detectLanguage(message)
+- **Backend:** receives `lang_hint` with message for AI response
+
+**Test examples:**
+```
+"नमस्ते" → Hinglish ✓
+"haan batao" → Hinglish ✓
+"Hello world" → English ✓
+"I am doing good, tu kaise ho?" → Hinglish ✓
+```
+
+### 7️⃣ **Voice Call Timer + Persist History**
+- **On call connect:**
+  - Record `callStart = Date.now()`
+  - Show live timer: HH:MM:SS (updates every 1s)
+  - Generate unique `call_id`
+- **On hangup:**
+  - Stop timer
+  - Compute `durationSeconds`
+  - Save to Supabase `call_history` table:
+    - `call_id, caller_id, callee_id, start_ts, end_ts, duration_seconds`
+- **UI:** Start timestamp + elapsed timer
+- **Summary view:** show human-friendly start time & duration
+
+**Example:**
+```
+Call started: 2:45 PM
+Duration: 00:05:32
+└─ Auto-saved to call_history
+```
+
+### 8️⃣ **Speaker Toggle (Audio Routing)**
+- **Add "Speaker" / "Earpiece" toggle in call UI**
+- **Device support:**
+  - ✅ Chrome/Edge/Brave: full speaker routing via `setSinkId()`
+  - ❌ Safari/Firefox: shows fallback message
+- **Implementation:**
+  - Enumerate audio output devices via `enumerateDevices()`
+  - Set sink ID on audio element: `audioElement.setSinkId(sinkId)`
+  - Store preference in `localStorage` per device
+- **Fallback:** "Speaker mode not supported on this browser"
+
+**Usage:**
+```tsx
+<CallComponent
+  callerId={userId}
+  calleeId={otherId}
+  onHangup={handleHangup}
+  onCallConnected={handleCallConnect}
+/>
+```
+
+---
+
+## 📊 Database Schema (Supabase)
+
+### `messages` table
+```sql
+CREATE TABLE messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  chat_id UUID NOT NULL,
+  sender_id UUID NOT NULL REFERENCES auth.users(id),
+  body TEXT NOT NULL,
+  reply_to UUID REFERENCES messages(id),  -- Quoted reply
+  edited_at TIMESTAMPTZ,                   -- Edit timestamp
+  deleted_at TIMESTAMPTZ,                  -- Soft delete
+  deleted_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### `call_history` table
+```sql
+CREATE TABLE call_history (
+  call_id UUID PRIMARY KEY,
+  caller_id UUID NOT NULL REFERENCES auth.users(id),
+  callee_id UUID NOT NULL REFERENCES auth.users(id),
+  start_ts TIMESTAMPTZ NOT NULL,
+  end_ts TIMESTAMPTZ,
+  duration_seconds INT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### `profiles` table (add to existing)
+```sql
+ALTER TABLE profiles 
+ADD COLUMN preferred_reply_language VARCHAR DEFAULT 'auto';
+-- Values: 'auto', 'hinglish', 'english'
+```
+
+---
+
+## 🧪 Testing Checklist
+
+### Unit Tests
+- ✅ `detectLanguage()` utility with Hindi, Hinglish, English samples
+- ✅ Message soft-delete + restore logic
+- ✅ Timestamp formatting (relative, absolute)
+
+### Integration Tests
+- ✅ Quoted reply: send reply, DB shows `reply_to`, UI displays quote
+- ✅ Multi-delete: select 3 messages, delete, undo within 10s, verify DB
+- ✅ Message edit: edit within 5 minutes, check `edited_at` label
+- ✅ Call timer: connect → timer starts → hangup → `call_history` saved
+
+### E2E Tests (two clients)
+- ✅ Client A types → Client B sees "typing…" within 200-500ms
+- ✅ Client A sends message → Client B receives (delivered tick) → reads (read tick)
+- ✅ Client A replies to message → Client B sees quote block + scroll works
+- ✅ Call: A calls B → timer runs → hangup → both see call history
+
+---
+
+## 🎯 Non-Implemented (By Design)
+- ❌ Message forwarding
+- ❌ Media uploads (images, videos, documents)
+- ❌ GIFs, stickers, link previews
+- ❌ Message scheduling
+- ❌ E2E encryption / E2E flags
+- ❌ Broadcast / channels
+- ❌ Thread / grouped replies
+- ❌ Block / report system
 
 ---
 

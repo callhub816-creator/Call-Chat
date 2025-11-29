@@ -6,13 +6,17 @@ import { LANGUAGE_CONTROL_SYSTEM_MESSAGE, NAME_AGNOSTIC_NOTE } from '../constant
 
 interface LiveVoiceCallProps {
   persona: Persona;
+  avatarUrl?: string;
   onClose: () => void;
 }
 
-const LiveVoiceCall: React.FC<LiveVoiceCallProps> = ({ persona, onClose }) => {
+const LiveVoiceCall: React.FC<LiveVoiceCallProps> = ({ persona, avatarUrl, onClose }) => {
   const [isMuted, setIsMuted] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error' | 'closed' | 'rate_limited'>('connecting');
   const [volumeLevel, setVolumeLevel] = useState(0);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [attempt, setAttempt] = useState(0); // bump to retry session
+  const [lastError, setLastError] = useState<string | null>(null);
 
   const inputAudioContextRef = useRef<AudioContext | null>(null);
   const outputAudioContextRef = useRef<AudioContext | null>(null);
@@ -21,13 +25,20 @@ const LiveVoiceCall: React.FC<LiveVoiceCallProps> = ({ persona, onClose }) => {
   const nextStartTimeRef = useRef<number>(0);
   const streamRef = useRef<MediaStream | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const callStartTimeRef = useRef<number>(0);
 
   useEffect(() => {
     let mounted = true;
 
     const startSession = async () => {
-      if (!process.env.API_KEY) {
-        if (mounted) setConnectionStatus('error');
+      // Prefer Vite exposed env var, fall back to process.env if present
+      const apiKey = (typeof process !== 'undefined' && (process.env as any)?.API_KEY) || (import.meta && (import.meta as any).env && (import.meta as any).env.VITE_API_KEY);
+      if (!apiKey) {
+        console.error('Missing API Key: set VITE_API_KEY in your environment');
+        if (mounted) {
+          setLastError('Missing API key (set VITE_API_KEY).');
+          setConnectionStatus('error');
+        }
         return;
       }
 
@@ -40,9 +51,12 @@ const LiveVoiceCall: React.FC<LiveVoiceCallProps> = ({ persona, onClose }) => {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           streamRef.current = stream;
-        } catch (e) {
+        } catch (e: any) {
           console.error("Mic permission denied", e);
-          if (mounted) setConnectionStatus('error');
+          if (mounted) {
+            setLastError('Microphone permission denied.');
+            setConnectionStatus('error');
+          }
           return;
         }
 
@@ -54,6 +68,7 @@ const LiveVoiceCall: React.FC<LiveVoiceCallProps> = ({ persona, onClose }) => {
             onopen: () => {
               if (!mounted) return;
               setConnectionStatus('connected');
+              callStartTimeRef.current = Date.now();
               if (!inputAudioContextRef.current || !streamRef.current) return;
               
               const source = inputAudioContextRef.current.createMediaStreamSource(streamRef.current);
@@ -106,7 +121,7 @@ const LiveVoiceCall: React.FC<LiveVoiceCallProps> = ({ persona, onClose }) => {
               }
             },
             onclose: () => { if (mounted) setConnectionStatus('closed'); },
-            onerror: (err) => { console.error(err); if (mounted) setConnectionStatus('error'); }
+            onerror: (err) => { console.error('Live session error', err); if (mounted) { setLastError(err?.message ? String(err.message) : JSON.stringify(err)); setConnectionStatus('error'); } }
           },
           config: {
             responseModalities: [Modality.AUDIO],
@@ -125,7 +140,8 @@ GLOBAL RULES: Keep responses conversational, warm, affectionate, girlfriend-like
       } catch (err: any) {
         console.error("Connection failed", err);
         if (mounted) {
-            const errorString = JSON.stringify(err);
+            const errorString = JSON.stringify(err || {});
+            setLastError(err?.message ? String(err.message) : errorString);
             if (errorString.includes('429') || err.message?.includes('429') || err.status === 429 || err.message?.includes('quota') || err.message?.includes('RESOURCE_EXHAUSTED')) {
                 setConnectionStatus('rate_limited');
             } else {
@@ -144,7 +160,21 @@ GLOBAL RULES: Keep responses conversational, warm, affectionate, girlfriend-like
       if (inputAudioContextRef.current && inputAudioContextRef.current.state !== 'closed') inputAudioContextRef.current.close();
       if (outputAudioContextRef.current && outputAudioContextRef.current.state !== 'closed') outputAudioContextRef.current.close();
     };
-  }, [persona]);
+  }, [persona, attempt]);
+
+  // Timer effect - runs while connected
+  useEffect(() => {
+    if (connectionStatus !== 'connected') return;
+
+    const timerInterval = setInterval(() => {
+      if (callStartTimeRef.current) {
+        const elapsed = Math.floor((Date.now() - callStartTimeRef.current) / 1000);
+        setElapsedTime(elapsed);
+      }
+    }, 1000);
+
+    return () => clearInterval(timerInterval);
+  }, [connectionStatus]);
 
   function createBlob(data: Float32Array): { data: string; mimeType: string } {
     const l = data.length;
@@ -168,6 +198,16 @@ GLOBAL RULES: Keep responses conversational, warm, affectionate, girlfriend-like
     return bytes;
   }
 
+  function formatTime(seconds: number) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    if (hours > 0) {
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+
   async function decodeAudioData(data: Uint8Array, ctx: AudioContext, sampleRate: number, numChannels: number): Promise<AudioBuffer> {
     const dataInt16 = new Int16Array(data.buffer);
     const frameCount = dataInt16.length / numChannels;
@@ -188,12 +228,33 @@ GLOBAL RULES: Keep responses conversational, warm, affectionate, girlfriend-like
         <div className="relative z-10 h-full flex flex-col items-center justify-between py-12 px-6">
           <div className="text-center space-y-2">
             <h2 className="text-[#5e3a58] text-sm font-bold tracking-widest uppercase opacity-70">Voice Call</h2>
+            {connectionStatus === 'connected' && (
+              <div className="text-2xl font-mono font-bold text-[#FF9ACB] tracking-wider">
+                {formatTime(elapsedTime)}
+              </div>
+            )}
             <div className={`px-3 py-1 rounded-full inline-flex items-center gap-2 ${connectionStatus === 'connected' ? 'bg-green-100 text-green-700' : (connectionStatus === 'error' || connectionStatus === 'rate_limited') ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
               {(connectionStatus === 'error' || connectionStatus === 'rate_limited') ? <AlertTriangle size={12} /> : <div className={`w-2 h-2 rounded-full ${connectionStatus === 'connected' ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`} />}
               <span className="text-xs font-medium">
                 {connectionStatus === 'connecting' ? 'Connecting...' : connectionStatus === 'connected' ? 'Connected' : connectionStatus === 'rate_limited' ? 'System Busy (429)' : connectionStatus === 'error' ? 'Connection Error' : 'Ended'}
               </span>
             </div>
+            {connectionStatus === 'error' && lastError && (
+              <div className="mt-2 text-center">
+                <p className="text-xs text-red-600 max-w-xs mx-auto break-words">{lastError}</p>
+                <div className="mt-2">
+                  <button onClick={() => { setLastError(null); setConnectionStatus('connecting'); setAttempt(a => a + 1); }} className="px-3 py-1 bg-red-500 text-white rounded-xl shadow-sm">Retry</button>
+                </div>
+              </div>
+            )}
+            {connectionStatus === 'rate_limited' && (
+              <div className="mt-2 text-center">
+                <p className="text-xs text-red-600 max-w-xs mx-auto">High traffic volume. Try again shortly.</p>
+                <div className="mt-2">
+                  <button onClick={() => { setLastError(null); setConnectionStatus('connecting'); setAttempt(a => a + 1); }} className="px-3 py-1 bg-red-500 text-white rounded-xl shadow-sm">Retry</button>
+                </div>
+              </div>
+            )}
           </div>
           <div className="relative">
             {connectionStatus === 'connected' && (
@@ -204,7 +265,11 @@ GLOBAL RULES: Keep responses conversational, warm, affectionate, girlfriend-like
             )}
             <div className="relative w-32 h-32 rounded-full bg-gradient-to-tr from-[#FF9ACB] to-[#B28DFF] p-1 shadow-[0_10px_40px_rgba(255,154,203,0.5)]">
                <div className="w-full h-full rounded-full bg-white/90 flex items-center justify-center overflow-hidden border-4 border-white">
-                 <User size={48} className="text-[#5e3a58] opacity-50" />
+                 {avatarUrl ? (
+                   <img src={avatarUrl} alt={persona.name} className="w-full h-full object-cover" />
+                 ) : (
+                   <User size={48} className="text-[#5e3a58] opacity-50" />
+                 )}
                </div>
             </div>
             {connectionStatus === 'rate_limited' && (

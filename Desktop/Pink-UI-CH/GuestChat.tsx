@@ -46,16 +46,25 @@ export default function GuestChat({ onBack }: GuestChatProps) {
 
   // Initialize Socket.IO connection
   useEffect(() => {
+    // Only try to connect if a server URL is configured
+    if (!SOCKET_URL || SOCKET_URL === 'http://localhost:3001') {
+      setError('📡 Socket server not configured. Guest chat disabled. Set VITE_SOCKET_URL environment variable.');
+      console.warn('Socket.IO server not configured. Set VITE_SOCKET_URL in your environment.');
+      return;
+    }
+
     const newSocket = io(SOCKET_URL, {
       reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5
+      reconnectionDelay: 2000,
+      reconnectionDelayMax: 10000,
+      reconnectionAttempts: 3,
+      transports: ['websocket', 'polling']
     });
 
     // Connection established
     newSocket.on('connect', () => {
       console.log('✅ Connected to server');
+      setError(null);
       setConnectedAt(new Date());
     });
 
@@ -82,8 +91,14 @@ export default function GuestChat({ onBack }: GuestChatProps) {
 
     // Handle errors
     newSocket.on('error', (data: any) => {
-      setError(data.message || 'An error occurred');
-      setTimeout(() => setError(null), 5000);
+      console.error('Socket error:', data);
+      setError(`❌ Connection error: ${data?.message || 'Server unavailable'}`);
+    });
+
+    // Handle connection error
+    newSocket.on('connect_error', (error: any) => {
+      console.error('Socket connect_error:', error.message);
+      setError(`❌ Cannot connect to server. Is it running at ${SOCKET_URL}?`);
     });
 
     // Messages cleared (admin action)
@@ -101,6 +116,7 @@ export default function GuestChat({ onBack }: GuestChatProps) {
       console.log('❌ Disconnected from server');
       setGuestId(null);
       setMessages([]);
+      setError('📡 Disconnected from server');
     });
 
     setSocket(newSocket);

@@ -1,5 +1,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
+import { AuthProvider } from './src/contexts/AuthContext';
+import Login from './src/components/Login';
+import Signup from './src/components/Signup';
 import CardGallery from './components/CardGallery';
 import PersonaGallery from './components/PersonaGallery';
 import LiveVoiceCall from './components/LiveVoiceCall';
@@ -23,7 +26,7 @@ interface ChatSession {
 }
 
 const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<'home' | 'about' | 'privacy' | 'terms' | 'faq' | 'safety' | 'admin' | 'guest-chat'>('home');
+  const [currentPage, setCurrentPage] = useState<'home' | 'about' | 'privacy' | 'terms' | 'faq' | 'safety' | 'admin' | 'guest-chat' | 'login' | 'signup'>('home');
   const galleryRef = useRef<HTMLDivElement>(null);
   const vibeRef = useRef<HTMLDivElement>(null);
 
@@ -33,6 +36,7 @@ const App: React.FC = () => {
   const [systemPersonas, setSystemPersonas] = useState<Persona[]>(PERSONAS);
 
   const [activeCallPersona, setActiveCallPersona] = useState<Persona | null>(null);
+  const [activeCallAvatarUrl, setActiveCallAvatarUrl] = useState<string | undefined>(undefined);
   const [activeChatSession, setActiveChatSession] = useState<ChatSession | null>(null);
   const [viewingProfile, setViewingProfile] = useState<{ persona: Persona, avatarUrl?: string } | null>(null);
 
@@ -71,13 +75,31 @@ const App: React.FC = () => {
     };
   }, [currentPage]);
 
-  const startVoiceCall = (persona: Persona) => {
+  // Sync with URL paths for simple routing (/login, /signup)
+  useEffect(() => {
+    const p = window.location.pathname;
+    if (p.startsWith('/login')) setCurrentPage('login');
+    else if (p.startsWith('/signup')) setCurrentPage('signup');
+    // Listen for popstate to handle back/forward
+    const onPop = () => {
+      const p2 = window.location.pathname;
+      if (p2.startsWith('/login')) setCurrentPage('login');
+      else if (p2.startsWith('/signup')) setCurrentPage('signup');
+      else setCurrentPage('home');
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  const startVoiceCall = (persona: Persona, avatarUrl?: string) => {
     setActiveCallPersona(persona);
+    setActiveCallAvatarUrl(avatarUrl);
     setViewingProfile(null);
   };
 
   const endVoiceCall = () => {
     setActiveCallPersona(null);
+    setActiveCallAvatarUrl(undefined);
   };
 
   const startChat = (persona: Persona, avatarUrl?: string) => {
@@ -117,6 +139,24 @@ const App: React.FC = () => {
   if (currentPage === 'guest-chat') {
     return <GuestChat onBack={() => setCurrentPage('home')} />;
   }
+  if (currentPage === 'login') {
+    return (
+      <AuthProvider>
+        <div className="min-h-screen flex items-center justify-center bg-[#FDF2F8] p-6">
+          <Login onBack={() => { setCurrentPage('home'); window.history.pushState({}, '', '/'); }} />
+        </div>
+      </AuthProvider>
+    );
+  }
+  if (currentPage === 'signup') {
+    return (
+      <AuthProvider>
+        <div className="min-h-screen flex items-center justify-center bg-[#FDF2F8] p-6">
+          <Signup onBack={() => { setCurrentPage('home'); window.history.pushState({}, '', '/'); }} />
+        </div>
+      </AuthProvider>
+    );
+  }
   if (currentPage === 'about') return <AboutPage onBack={() => setCurrentPage('home')} />;
   if (currentPage === 'privacy') return <PrivacyPage onBack={() => setCurrentPage('home')} />;
   if (currentPage === 'terms') return <TermsPage onBack={() => setCurrentPage('home')} />;
@@ -124,7 +164,8 @@ const App: React.FC = () => {
   if (currentPage === 'safety') return <SafetyPage onBack={() => setCurrentPage('home')} />;
 
   return (
-    <div className="min-h-screen w-full bg-[#FDF2F8] relative overflow-x-hidden font-sans">
+    <AuthProvider>
+      <div className="min-h-screen w-full bg-[#FDF2F8] relative overflow-x-hidden font-sans">
       
       {/* Chat Screen Overlay */}
       {activeChatSession && (
@@ -135,13 +176,14 @@ const App: React.FC = () => {
           onBack={endChat}
           onStartCall={() => {
             setActiveCallPersona(activeChatSession.persona);
+            setActiveCallAvatarUrl(activeChatSession.avatarUrl);
           }}
         />
       )}
 
       {/* Voice Call Overlay */}
       {activeCallPersona && (
-        <LiveVoiceCall persona={activeCallPersona} onClose={endVoiceCall} />
+        <LiveVoiceCall persona={activeCallPersona} avatarUrl={activeCallAvatarUrl} onClose={endVoiceCall} />
       )}
 
       {/* Profile Details Modal */}
@@ -151,7 +193,7 @@ const App: React.FC = () => {
           avatarUrl={viewingProfile.avatarUrl}
           onClose={() => setViewingProfile(null)}
           onStartChat={() => startChat(viewingProfile.persona, viewingProfile.avatarUrl)}
-          onStartCall={() => startVoiceCall(viewingProfile.persona)}
+          onStartCall={() => startVoiceCall(viewingProfile.persona, viewingProfile.avatarUrl)}
         />
       )}
 
@@ -229,6 +271,8 @@ const App: React.FC = () => {
           <div className="flex flex-wrap justify-center gap-6">
             <button onClick={() => setCurrentPage('about')} className="text-xs text-[#5e3a58]/70 hover:text-[#B28DFF] font-medium transition-colors">About Us</button>
             <button onClick={() => setCurrentPage('guest-chat')} className="text-xs text-[#5e3a58]/70 hover:text-[#B28DFF] font-medium transition-colors">Guest Chat</button>
+            <button onClick={() => { setCurrentPage('login'); window.history.pushState({}, '', '/login'); }} className="text-xs text-[#5e3a58]/70 hover:text-[#B28DFF] font-medium transition-colors">Log in</button>
+            <button onClick={() => { setCurrentPage('signup'); window.history.pushState({}, '', '/signup'); }} className="text-xs text-[#5e3a58]/70 hover:text-[#B28DFF] font-medium transition-colors">Sign up</button>
             <button onClick={() => setCurrentPage('faq')} className="text-xs text-[#5e3a58]/70 hover:text-[#B28DFF] font-medium transition-colors">FAQ</button>
             <button onClick={() => setCurrentPage('privacy')} className="text-xs text-[#5e3a58]/70 hover:text-[#B28DFF] font-medium transition-colors">Privacy Policy</button>
             <button onClick={() => setCurrentPage('terms')} className="text-xs text-[#5e3a58]/70 hover:text-[#B28DFF] font-medium transition-colors">Terms of Service</button>
@@ -245,7 +289,8 @@ const App: React.FC = () => {
         </footer>
 
       </main>
-    </div>
+      </div>
+    </AuthProvider>
   );
 };
 

@@ -49,6 +49,10 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ persona, avatarUrl, onBack, onS
   const [customEndColor, setCustomEndColor] = useState('#E6E6FA');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
+  // Message selection state
+  const [selectedMessages, setSelectedMessages] = useState<Set<string>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+
   const THEMES = [
     { id: 'default', name: 'Romantic', class: 'from-[#FFF0F5] via-[#E6E6FA] to-[#FDF2F8]', colors: ['#FFF0F5', '#E6E6FA'] },
     { id: 'peach', name: 'Peach', class: 'from-[#FFF5F5] via-[#FED7AA] to-[#FFF0F5]', colors: ['#FFF5F5', '#FED7AA'] },
@@ -331,6 +335,40 @@ Now behave as ${persona.name} locked to ${lockedMode} mode and respond in the de
     setShowSettings(false); 
   };
 
+  const toggleMessageSelection = (messageId: string) => {
+    const newSelected = new Set(selectedMessages);
+    if (newSelected.has(messageId)) {
+      newSelected.delete(messageId);
+    } else {
+      newSelected.add(messageId);
+    }
+    setSelectedMessages(newSelected);
+    if (newSelected.size === 0) {
+      setIsSelectionMode(false);
+    }
+  };
+
+  const handleDeleteSelected = () => {
+    const newMessages = messages.filter(m => !selectedMessages.has(m.id));
+    setMessages(newMessages);
+    
+    // Update storage
+    const userMessages = newMessages.filter(m => m.sender === 'user').map(m => ({
+      id: m.id,
+      sender: m.sender,
+      text: m.text,
+      mood: m.mood,
+      timestamp: m.timestamp.toISOString(),
+      isError: m.isError,
+      isRead: m.isRead,
+      replyTo: m.replyTo
+    }));
+    storage.saveMessages(persona.id, userMessages);
+    
+    setSelectedMessages(new Set());
+    setIsSelectionMode(false);
+  };
+
   const getBackgroundStyle = () => {
     if (themeMode === 'custom') {
       return { background: `linear-gradient(to bottom, ${customStartColor}, ${customEndColor})` };
@@ -465,6 +503,26 @@ Now behave as ${persona.name} locked to ${lockedMode} mode and respond in the de
             >
               <Palette size={20} />
             </button>
+
+            {isSelectionMode && selectedMessages.size > 0 && (
+              <button 
+              onClick={handleDeleteSelected}
+              className="
+                  relative group
+                  p-3 rounded-full 
+                  bg-red-500/40 border border-red-400/60 
+                  text-red-600 
+                  shadow-[0_0_15px_rgba(239,68,68,0.4)] 
+                  hover:shadow-[0_0_25px_rgba(239,68,68,0.6)]
+                  hover:scale-110 active:scale-95
+                  transition-all duration-300
+              "
+              title={`Delete ${selectedMessages.size} message${selectedMessages.size > 1 ? 's' : ''}`}
+              >
+              <div className="absolute inset-0 rounded-full bg-red-500 opacity-20 blur-md group-hover:opacity-40 transition-opacity"></div>
+              <Trash2 size={22} className="relative z-10" />
+              </button>
+            )}
 
             <button 
             onClick={onStartCall}
@@ -646,10 +704,21 @@ Now behave as ${persona.name} locked to ${lockedMode} mode and respond in the de
         {messages.map((msg) => (
           <div 
             key={msg.id} 
-            className={`relative flex flex-col touch-pan-y ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
+            className={`relative flex flex-col touch-pan-y gap-2 ${msg.sender === 'user' ? 'items-end' : 'items-start'} ${isSelectionMode ? 'cursor-pointer' : ''}`}
             onTouchStart={(e) => handleTouchStart(e, msg.id)}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
+            onLongPress={() => {
+              if (!isSelectionMode) {
+                setIsSelectionMode(true);
+                toggleMessageSelection(msg.id);
+              }
+            }}
+            onClick={() => {
+              if (isSelectionMode) {
+                toggleMessageSelection(msg.id);
+              }
+            }}
           >
             {/* Reply Indicators */}
             <div 
@@ -678,6 +747,17 @@ Now behave as ${persona.name} locked to ${lockedMode} mode and respond in the de
                     alignItems: msg.sender === 'user' ? 'flex-end' : 'flex-start'
                 }}
             >
+                {isSelectionMode && (
+                  <div className="mb-2 flex items-center justify-center">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedMessages.has(msg.id)}
+                      onChange={() => toggleMessageSelection(msg.id)}
+                      className="w-5 h-5 cursor-pointer rounded border-2 border-[#B28DFF] accent-[#B28DFF]"
+                    />
+                  </div>
+                )}
+
                 {msg.mood && msg.sender === 'model' && !msg.isError && (
                 <span className="mb-1.5 ml-3 px-2 py-0.5 rounded-md bg-[#E6E6FA]/90 text-[9px] font-bold text-[#9F7AEA] uppercase tracking-wider border border-[#B28DFF]/20 shadow-sm transform -translate-y-1">
                     {msg.mood}
