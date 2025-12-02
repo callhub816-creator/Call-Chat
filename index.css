@@ -1,0 +1,22 @@
+/* Minimal site CSS — prevents missing file build warning and provides base styles */
+:root {
+  --bg: #FDF2F8;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Utility to hide scrollbars for components that expect it */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Small accessibility focus ring */
+:focus { outline: 2px solid rgba(139,43,247,0.25); outline-offset: 2px; }
