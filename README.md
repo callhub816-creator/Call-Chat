@@ -10,7 +10,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/License-MIT-green)](#)
 
-[Quick Start](#-quick-start) • [Features](#-features) • [Setup](#-setup) • [API Docs](#-api-reference) • [Deployment](#-deployment)
+[Quick Start](#-quick-start) • [Features](#-features) • [Setup](#-setup) • [API Docs](#-api-reference) • [Deployment](#-deployment) • [CI](#-continuous-integration)
 
 </div>
 
@@ -44,6 +44,7 @@
 ### Prerequisites
 - **Node.js** v18+ (tested on v22.20.0)
 - **npm** or **yarn**
+ - Optional: use `nvm` and run `nvm use` (reads `.nvmrc`)
 
 ### 1. Configure Environment Variables
 
@@ -124,6 +125,20 @@ npm run server:dev
 1. Visit http://localhost:5173
 2. Click **"Guest Chat"** button
 3. Start chatting anonymously!
+
+---
+
+## 🛠️ Continuous Integration
+
+This repository runs a GitHub Actions CI on each push and pull request to ensure the project builds across Node.js `18.x` and `22.x`.
+
+Workflow: `.github/workflows/ci.yml`
+
+Steps:
+- Checkout repository
+- Setup Node with caching
+- `npm ci`
+- `npm run build`
 
 ---
 
