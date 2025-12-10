@@ -1,0 +1,321 @@
+================================================================================
+DEPLOY_CHECKLIST.txt - Quick Reference for Production Launch
+================================================================================
+
+STATUS: PRE-LAUNCH CHECKLIST
+Last Updated: December 10, 2025
+
+================================================================================
+PHASE 1: PRE-DEPLOYMENT VERIFICATION
+================================================================================
+
+FUNCTIONAL TESTING:
+[ ] npm install runs without errors
+[ ] npm run dev starts successfully at http://localhost:3000
+[ ] npm run build completes without errors
+[ ] npm run preview shows production build correctly
+[ ] All pages load (Home, About, Guides, Blog, Contact)
+[ ] All navigation links work
+[ ] Contact form submits without errors (client-side validation only)
+[ ] Mobile responsiveness tested (iPhone, Android, tablet)
+[ ] No console errors in browser DevTools
+
+SEO & TECHNICAL:
+[ ] Meta tags verified in HTML (title, description, OG tags)
+[ ] Sitemap.xml accessible at /public/sitemap.xml
+[ ] Robots.txt accessible and proper format
+[ ] HTTPS enabled (add SSL before deploying live)
+[ ] Favicon displays correctly
+[ ] Images load and have alt text
+[ ] Internal links work correctly
+[ ] External links open in new tabs where appropriate
+
+COMPLIANCE & SECURITY:
+[ ] Privacy Policy page accessible
+[ ] Disclaimer page accessible
+[ ] About page has contact email
+[ ] No API keys or secrets in code (.env.example only)
+[ ] No console.log() debugging statements left in code
+[ ] .gitignore includes .env and node_modules
+[ ] No hardcoded localhost URLs (all relative paths)
+
+PERFORMANCE:
+[ ] PageSpeed Insights score >60 (desktop and mobile)
+[ ] Lighthouse accessibility score >85
+[ ] Lighthouse best practices score >85
+[ ] Time to First Contentful Paint < 2.5s
+[ ] No 404 errors in network tab
+[ ] Images optimized (< 100KB each)
+
+CONTENT REVIEW:
+[ ] All guides have proper disclaimers
+[ ] No spelling or grammar errors in visible content
+[ ] Sample article includes sources and FAQs
+[ ] Footer has links to legal pages
+
+================================================================================
+PHASE 2: DEPLOYMENT SETUP
+================================================================================
+
+CHOOSE PLATFORM:
+[ ] Decision made: Vercel / Cloudflare Pages / Netlify / Other ________
+
+VERCEL SETUP (if chosen):
+[ ] GitHub repo connected to Vercel
+[ ] Build command: npm run build
+[ ] Install command: npm install
+[ ] Output directory: dist
+[ ] Environment variables configured (if any needed)
+[ ] Custom domain configured (manage-money.online)
+[ ] SSL certificate auto-enabled
+[ ] Auto-deploy on git push configured
+[ ] Deployment preview tested
+
+CLOUDFLARE PAGES SETUP (if chosen):
+[ ] GitHub repo connected
+[ ] Build command: npm run build
+[ ] Build output directory: dist
+[ ] Node.js version set to latest LTS (18+)
+[ ] Custom domain DNS configured
+[ ] SSL/TLS certificate generated
+[ ] Root domain and www redirects configured
+[ ] Deploy tested
+
+NETLIFY SETUP (if chosen):
+[ ] GitHub repo connected
+[ ] Build command: npm run build
+[ ] Publish directory: dist
+[ ] Environment variables set (if any)
+[ ] Custom domain configured
+[ ] HTTPS (auto-enabled)
+[ ] Deploy tested
+
+CUSTOM SERVER SETUP (if self-hosting):
+[ ] Server provisioned (AWS EC2, DigitalOcean, etc.)
+[ ] Node.js 18+ installed
+[ ] npm/yarn installed
+[ ] PM2 or similar process manager installed
+[ ] Nginx or Apache reverse proxy configured
+[ ] SSL certificate installed (Let's Encrypt or other)
+[ ] Build command runs successfully
+[ ] Start script tested (npm run build && npm run preview or similar)
+
+================================================================================
+PHASE 3: PRE-LAUNCH FINAL CHECKS
+================================================================================
+
+TESTING ON LIVE DOMAIN:
+[ ] Site loads at https://manage-money.online
+[ ] No SSL certificate warnings
+[ ] Mobile responsive on live domain
+[ ] All pages load (test 5+ pages)
+[ ] Navigation works
+[ ] Forms functional (contact page)
+[ ] Images load with correct alt text
+[ ] Links work (internal and external)
+
+GOOGLE INTEGRATION:
+[ ] Google Analytics 4 property created (account ID: ______________)
+[ ] GA4 tracking code ready (but not live until verification)
+[ ] Search Console property created for domain
+[ ] Sitemap submitted to Search Console
+[ ] Robots.txt accessible and correct
+
+ADSENSE PREPARATION:
+[ ] Ad placeholder HTML comments in place (Layout.tsx, article templates)
+[ ] Privacy Policy complete and accessible
+[ ] About & Contact pages complete
+[ ] Disclaimer page complete
+[ ] All 15+ content articles published and live
+[ ] Content meets AdSense quality standards (reviewed against AD_SENSE_CHECKLIST.md)
+
+BACKUP & RECOVERY:
+[ ] GitHub repository backed up
+[ ] Build artifacts saved (dist/ folder backed up)
+[ ] Environment variables documented in .env.example (never commit .env)
+[ ] Database backups configured (if applicable - none for this site)
+
+================================================================================
+PHASE 4: LAUNCH DAY STEPS
+================================================================================
+
+HOUR-BY-HOUR:
+
+2 HOURS BEFORE LAUNCH:
+[ ] Final build test: npm run build && npm run preview
+[ ] DNS cache purge (if using custom domain)
+[ ] Notify team/stakeholders
+[ ] Have rollback plan ready
+
+1 HOUR BEFORE LAUNCH:
+[ ] Deployment environment prepared
+[ ] All environment variables confirmed
+[ ] Deployment scripts tested
+[ ] Log monitoring tools ready
+
+AT LAUNCH TIME:
+[ ] Deploy to production environment
+[ ] Verify deployment successful (check provider's dashboard)
+[ ] Test live domain in multiple browsers
+[ ] Verify all pages load
+[ ] Check for errors in browser console
+[ ] Monitor server logs for errors
+
+30 MINUTES AFTER LAUNCH:
+[ ] Performance baseline recorded (PageSpeed, Core Web Vitals)
+[ ] Monitor error rates and exceptions
+[ ] Check Analytics data coming through
+[ ] Spot-check key pages
+[ ] Verify contact form working
+
+2 HOURS AFTER LAUNCH:
+[ ] Traffic patterns normal (check Analytics)
+[ ] No repeated errors in logs
+[ ] CDN cache status healthy (if using CDN)
+[ ] DNS propagation confirmed (nslookup check)
+[ ] Send success notification to team
+
+================================================================================
+PHASE 5: POST-LAUNCH (First Week)
+================================================================================
+
+DAY 1:
+[ ] Monitor error logs (no critical issues)
+[ ] Analytics tracking confirmed (GA4 recording visits)
+[ ] PageSpeed monitored (no degradation)
+[ ] User feedback collected (Contact form checked)
+
+DAY 2-3:
+[ ] Submit sitemap to Search Console (if not auto-discovered)
+[ ] Request URL indexing in Search Console for key pages
+[ ] Monitor AdSense readiness (if planning to apply)
+[ ] Content quality spot-check (all pages render correctly)
+
+DAY 4-7:
+[ ] Google Search Console: Monitor for crawl errors
+[ ] Analytics: Verify traffic patterns and sources
+[ ] Performance: Check Lighthouse scores remain >85
+[ ] Content: Verify all articles indexed in Google
+[ ] Preparation: Begin AdSense application process
+
+================================================================================
+PHASE 6: ADSENSE APPLICATION (Week 2)
+================================================================================
+
+BEFORE APPLYING:
+[ ] 30+ days of Google Analytics data available
+[ ] 15+ high-quality articles published and indexed
+[ ] Privacy Policy complete and accessible
+[ ] Contact page with working email
+[ ] All legal pages (About, Disclaimer, Privacy) complete
+[ ] No policy violations detected
+[ ] PageSpeed Insights score >60 on all pages
+
+APPLY FOR ADSENSE:
+[ ] Go to https://www.google.com/adsense/
+[ ] Sign in with Google account
+[ ] Click "Sign up" and enter domain
+[ ] Wait for initial approval (24-48 hours typically)
+[ ] Check email for approval or denial
+
+IF APPROVED:
+[ ] Log into AdSense dashboard
+[ ] Generate ad code for placement
+[ ] Create ad units (728x90, 300x250, 336x280 recommended)
+[ ] Implement ad code in Layout.tsx (replace comments)
+[ ] Test ads with AdSense preview mode (do not click real ads)
+[ ] Monitor earnings for first month
+
+IF DENIED:
+[ ] Read Google's denial explanation carefully
+[ ] Fix identified issues (typically: content quality, traffic, compliance)
+[ ] Wait 2 weeks minimum before reapplying
+[ ] Reapply with improvements
+[ ] Document each attempt and fixes made
+
+================================================================================
+PHASE 7: ONGOING MAINTENANCE
+================================================================================
+
+MONTHLY:
+[ ] Review Analytics for traffic trends
+[ ] Check PageSpeed Insights score
+[ ] Verify all pages load without errors
+[ ] Test on mobile and desktop
+[ ] Monitor AdSense earnings (if approved)
+[ ] Publish new article or update existing content
+[ ] Review Search Console for errors
+
+QUARTERLY:
+[ ] Security audit: npm audit for vulnerabilities
+[ ] Content audit: Update outdated information
+[ ] Competitor analysis: Review comparable sites
+[ ] Backlink strategy: Build links from relevant sites
+[ ] SEO audit: Check keyword rankings, internal linking
+
+ANNUALLY:
+[ ] Full site audit: Lighthouse, PageSpeed, accessibility
+[ ] Security penetration test (if budget allows)
+[ ] Legal review: Privacy Policy, Disclaimer compliance
+[ ] Strategy review: Traffic growth, AdSense CPM trends
+[ ] Roadmap: Plan new content and features
+
+================================================================================
+ROLLBACK PLAN (If Critical Issues Detected)
+================================================================================
+
+IMMEDIATE ROLLBACK:
+[ ] Provider dashboard: Revert to previous deployment
+[ ] DNS: Point to previous server (if applicable)
+[ ] CDN cache: Purge and reset to previous version
+[ ] Verify previous version works at live domain
+[ ] Notify stakeholders of rollback
+
+POST-ROLLBACK INVESTIGATION:
+[ ] Log analysis: Identify failure cause
+[ ] Code review: What changed in this deployment?
+[ ] Database: Any corrupted data?
+[ ] Prepare fix and staging test before re-deploying
+
+================================================================================
+SUPPORT CONTACTS
+================================================================================
+
+DEPLOYMENT PLATFORM SUPPORT:
+Provider: ____________________________
+Support Email: ____________________________
+Status Page: ____________________________
+Emergency Contact: ____________________________
+
+DOMAIN REGISTRAR:
+Provider: ____________________________
+Support: ____________________________
+
+SSL CERTIFICATE PROVIDER:
+Provider: ____________________________
+Support: ____________________________
+
+TEAM MEMBERS:
+- Developer: ____________________ (Phone/Email)
+- Content: ____________________ (Phone/Email)
+- Product Owner: ____________________ (Phone/Email)
+
+================================================================================
+SIGN-OFF
+================================================================================
+
+Development Complete By: _______________________ Date: __________
+
+QA/Testing Complete By: _______________________ Date: __________
+
+Deployment Authorization By: _______________________ Date: __________
+
+Deployment Executed By: _______________________ Date: __________
+
+Launch Verification By: _______________________ Date: __________
+
+Note: Save this checklist as a template for future deployments and updates.
+
+================================================================================
+END OF CHECKLIST
+================================================================================
